@@ -11,7 +11,7 @@ use crate::{error::ErrorCode, state::Vault};
 #[instruction(vault_name: String)]
 pub struct ClaimTokens<'info> {
     #[account(mut)]
-    pub beneficiary: Signer<'info>,
+    pub recipient: Signer<'info>,
 
     #[account(
 		mut,
@@ -26,9 +26,9 @@ pub struct ClaimTokens<'info> {
 
     #[account(
 		init_if_needed,
-		payer = beneficiary,
+		payer = recipient,
         associated_token::mint = mint,
-        associated_token::authority = beneficiary,
+        associated_token::authority = recipient,
         associated_token::token_program = token_program
 	)]
     pub recipient_token_account: InterfaceAccount<'info, TokenAccount>,

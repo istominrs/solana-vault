@@ -27,7 +27,7 @@ export type TimeLockVault = {
       ],
       "accounts": [
         {
-          "name": "beneficiary",
+          "name": "recipient",
           "writable": true,
           "signer": true
         },
@@ -56,7 +56,7 @@ export type TimeLockVault = {
             "seeds": [
               {
                 "kind": "account",
-                "path": "beneficiary"
+                "path": "recipient"
               },
               {
                 "kind": "account",

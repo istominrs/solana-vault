@@ -21,7 +21,7 @@
       ],
       "accounts": [
         {
-          "name": "beneficiary",
+          "name": "recipient",
           "writable": true,
           "signer": true
         },
@@ -50,7 +50,7 @@
             "seeds": [
               {
                 "kind": "account",
-                "path": "beneficiary"
+                "path": "recipient"
               },
               {
                 "kind": "account",
