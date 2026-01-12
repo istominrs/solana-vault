@@ -20,7 +20,6 @@ describe('time lock vault tests', () => {
   let authority: Keypair;
   let mint: PublicKey;
   let vaultAccountKey: PublicKey;
-  let vaultAccountBump: number;
 
   let context: ProgramTestContext;
   let provider: BankrunProvider;
@@ -68,14 +67,17 @@ describe('time lock vault tests', () => {
 
     // Derive PDAs
     [vaultAccountKey] = PublicKey.findProgramAddressSync(
-      [Buffer.from('treasury'), Buffer.from(vaultName)],
+      [Buffer.from(vaultName)],
       program.programId,
     );
   });
 
   it('initialize vault', async () => {
+    const unlockTime = new BN(1000);
+    const totalAmount = new BN(100_000_000);
+
     await program.methods
-      .initializeVault(vaultName, new BN(1000), new BN(100_000_000))
+      .initializeVault(vaultName, unlockTime, totalAmount)
       .accounts({
         authority: authority.publicKey,
         mint,
@@ -84,6 +86,11 @@ describe('time lock vault tests', () => {
       .rpc({ commitment: 'confirmed' });
 
     const vaultAccountData = await program.account.vault.fetch(vaultAccountKey, 'confirmed');
-    console.log('Vault Account Data:', JSON.stringify(vaultAccountData, null, 2));
+
+    expect(vaultAccountData.authority).toEqual(authority.publicKey);
+    expect(vaultAccountData.mint).toEqual(mint);
+    expect(vaultAccountData.vaultName).toEqual(vaultName);
+    expect(vaultAccountData.unlockTime.toNumber()).toEqual(unlockTime.toNumber());
+    expect(vaultAccountData.totalAmount.toNumber()).toEqual(totalAmount.toNumber());
   });
 });
