@@ -1,1 +1,1 @@
-export * from './time-lock-vault-exports'
+export * from './vault-exports';

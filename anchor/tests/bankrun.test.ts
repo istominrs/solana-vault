@@ -1,96 +1,41 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program, BN } from '@coral-xyz/anchor';
-import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { Program } from '@coral-xyz/anchor';
+import { PublicKey } from '@solana/web3.js';
 import { BankrunProvider } from 'anchor-bankrun';
 
-import { BanksClient, ProgramTestContext, startAnchor } from 'solana-bankrun';
+import { startAnchor } from 'solana-bankrun';
 
-import IDL from '../target/idl/time_lock_vault.json';
-import { TimeLockVault } from '../target/types/time_lock_vault';
-import { SYSTEM_PROGRAM_ID } from '@coral-xyz/anchor/dist/cjs/native/system';
+import IDL from '../target/idl/vault.json';
+import { Vault } from '../target/types/vault';
 
-import { createMint, mintTo } from 'spl-token-bankrun';
-import { TOKEN_PROGRAM_ID } from '@coral-xyz/anchor/dist/cjs/utils/token';
-import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
+describe('vault tests', () => {
+  const vaultName = 'vault';
 
-describe('time lock vault tests', () => {
-  const vaultName: string = 'vault';
+  let context;
+  let provider;
+  let vaultProgram: anchor.Program<Vault>;
 
-  let recipient: Keypair;
-  let authority: Keypair;
-  let mint: PublicKey;
-  let vaultAccountKey: PublicKey;
-
-  let context: ProgramTestContext;
-  let provider: BankrunProvider;
-  let recipientProvider: BankrunProvider;
-  let program: Program<TimeLockVault>;
-  let recipientProgram: Program<TimeLockVault>;
-  let banksClient: BanksClient;
+  let vaultAccountPda: PublicKey;
 
   beforeAll(async () => {
-    recipient = new anchor.web3.Keypair();
-
-    context = await startAnchor(
-      '',
-      [{ name: 'time_lock_vault', programId: new PublicKey(IDL.address) }],
-      [
-        {
-          address: recipient.publicKey,
-          info: {
-            lamports: LAMPORTS_PER_SOL,
-            data: Buffer.alloc(0),
-            owner: SYSTEM_PROGRAM_ID,
-            executable: false,
-          },
-        },
-      ],
-    );
-
+    context = await startAnchor('', [{ name: 'vault', programId: new PublicKey(IDL.address) }], []);
     provider = new BankrunProvider(context);
-    anchor.setProvider(provider);
 
-    program = new Program<TimeLockVault>(IDL, provider);
+    vaultProgram = new Program<Vault>(IDL, provider);
 
-    banksClient = context.banksClient;
-
-    authority = provider.wallet.payer;
-
-    // Create mint
-    // @ts-ignore
-    mint = await createMint(banksClient, authority, authority.publicKey, null, 2);
-
-    recipientProvider = new BankrunProvider(context);
-    recipientProvider.wallet = new NodeWallet(recipient);
-
-    recipientProgram = new Program<TimeLockVault>(IDL as TimeLockVault, recipientProvider);
-
-    // Derive PDAs
-    [vaultAccountKey] = PublicKey.findProgramAddressSync(
+    [vaultAccountPda] = PublicKey.findProgramAddressSync(
       [Buffer.from(vaultName)],
-      program.programId,
+      vaultProgram.programId,
     );
   });
 
-  it('initialize vault', async () => {
-    const unlockTime = new BN(1000);
-    const totalAmount = new BN(100_000_000);
+  it('create vault', async () => {
+    await vaultProgram.methods.createVault(vaultName).rpc({ commitment: 'confirmed' });
 
-    await program.methods
-      .initializeVault(vaultName, unlockTime, totalAmount)
-      .accounts({
-        authority: authority.publicKey,
-        mint,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .rpc({ commitment: 'confirmed' });
+    const vault = await vaultProgram.account.vault.fetch(vaultAccountPda);
 
-    const vaultAccountData = await program.account.vault.fetch(vaultAccountKey, 'confirmed');
-
-    expect(vaultAccountData.authority).toEqual(authority.publicKey);
-    expect(vaultAccountData.mint).toEqual(mint);
-    expect(vaultAccountData.vaultName).toEqual(vaultName);
-    expect(vaultAccountData.unlockTime.toNumber()).toEqual(unlockTime.toNumber());
-    expect(vaultAccountData.totalAmount.toNumber()).toEqual(totalAmount.toNumber());
+    expect(vault.vaultName).toEqual(vaultName);
+    expect(vault.isLocked).toBeFalsy();
+    expect(vault.unlockTimestamp.toNumber()).toEqual(0);
   });
 });
